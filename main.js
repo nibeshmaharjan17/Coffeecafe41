@@ -358,8 +358,10 @@ mobileNavToggle.addEventListener('click', () => {
 });
 
 
+
 window.addEventListener('click', (e) => e.target === cartModal && (cartModal.style.display = 'none'));
 
 initializeMenu();
+
 
 
