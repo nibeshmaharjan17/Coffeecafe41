@@ -293,27 +293,45 @@ document.querySelectorAll('a[href^="#"], button[data-scroll]').forEach(el => {
         }
     });
 });
-// Smooth scrolling for all internal links and buttons
-document.querySelectorAll('a[href^="#"], button[data-scroll]').forEach(el => {
-    el.addEventListener('click', (e) => {
-        e.preventDefault();
 
-        let targetId = el.getAttribute('href') || el.getAttribute('data-scroll');
-        if (!targetId) return;
 
-        const targetElement = document.querySelector(targetId);
-        if (targetElement) {
-            targetElement.scrollIntoView({ behavior: 'smooth' });
-        }
+// ---------------------------
+// Mobile / Hamburger Navigation
+// ---------------------------
 
-        // Close mobile nav if open
-        if (mobileNav.classList.contains('active')) {
-            closeMobileNav();
-        }
-    });
+// Functions to open and close mobile nav
+function openMobileNav() {
+    mobileNav.classList.add('active');
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    mobileNavToggle.querySelector('i').classList.remove('fa-bars');
+    mobileNavToggle.querySelector('i').classList.add('fa-times');
+}
+
+function closeMobileNav() {
+    mobileNav.classList.remove('active');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+    mobileNavToggle.querySelector('i').classList.remove('fa-times');
+    mobileNavToggle.querySelector('i').classList.add('fa-bars');
+}
+
+// Toggle mobile menu on click
+mobileNavToggle.addEventListener('click', () => {
+    if (mobileNav.classList.contains('active')) {
+        closeMobileNav();
+    } else {
+        openMobileNav();
+    }
 });
 
+// Close menu if overlay is clicked
+overlay.addEventListener('click', closeMobileNav);
 
+// Close mobile menu when any link inside it is clicked
+document.querySelectorAll('.mobile-nav a').forEach(link => {
+    link.addEventListener('click', closeMobileNav);
+});
 
 // Initialize the application
 initializeMenu();
