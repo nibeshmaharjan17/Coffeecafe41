@@ -134,7 +134,7 @@
                 price: 500,
                 category: "snacks",
                 description: "Loaded with spicy pepperoni slices, melted mozzarella, and zesty tomato sauce.",
-                image: "peppernoi.jpg",
+                image: "pepperoni.jpg",
             },
              {
                 id: 18,
@@ -150,7 +150,7 @@
                 price: 120,
                 category: "snacks",
                 description: "Steamed dumplings packed with fresh vegetables and aromatic spices, served with chili sauce.",
-                image: "vegmomo.jpg",
+                image: "vegmomo.avif",
              },
              {
                 id: 20,
@@ -161,8 +161,6 @@
                 image: "fries.jpg",
             },
         ];
-
-
 // Cart functionality
 let cart = [];
 const cartIcon = document.getElementById('cartIcon');
@@ -176,104 +174,139 @@ const categoryButtons = document.querySelectorAll('.category-btn');
 const proceedToCheckoutBtn = document.getElementById('proceedToCheckout');
 const checkoutForm = document.getElementById('checkoutForm');
 const orderConfirmation = document.getElementById('orderConfirmation');
-const backToCartBtn = document.getElementById('backToCart');
 const placeOrderBtn = document.getElementById('placeOrder');
-const newOrderBtn = document.getElementById('newOrder');
 const orderSummary = document.getElementById('orderSummary');
 
-// Mobile navigation elements
+// Mobile navigation
 const mobileNavToggle = document.getElementById('mobileNavToggle');
 const mobileNav = document.getElementById('mobileNav');
 const overlay = document.getElementById('overlay');
 
-// Initialize the menu
 function initializeMenu() {
     displayMenuItems(menuItems);
-    
-    // Add event listeners to category buttons
     categoryButtons.forEach(button => {
         button.addEventListener('click', () => {
             categoryButtons.forEach(btn => btn.classList.remove('active'));
             button.classList.add('active');
-            const category = button.getAttribute('data-category');
-            filterMenuItems(category);
+            filterMenuItems(button.getAttribute('data-category'));
         });
     });
 }
 
 const orderNowBtn = document.getElementById('orderNowBtn');
-orderNowBtn.addEventListener('click', () => {
-    const menuSection = document.getElementById('menu');
-    menuSection.scrollIntoView({ behavior: 'smooth' });
-});
+if(orderNowBtn) {
+    orderNowBtn.addEventListener('click', () => {
+        document.getElementById('menu').scrollIntoView({ behavior: 'smooth' });
+    });
+}
 
-
-// Display menu items (Ratings removed)
 function displayMenuItems(items) {
     menuGrid.innerHTML = '';
-    
     items.forEach(item => {
-        const menuItemElement = document.createElement('div');
-        menuItemElement.classList.add('menu-item');
-        menuItemElement.setAttribute('data-category', item.category);
-        
-        menuItemElement.innerHTML = `
+        const div = document.createElement('div');
+        div.classList.add('menu-item');
+        div.innerHTML = `
             <div class="item-image" style="background-image: url('${item.image}')"></div>
             <div class="item-content">
                 <div class="item-header">
                     <h3 class="item-title">${item.name}</h3>
-                    <div class="item-price">$${item.price.toFixed(2)}</div>
+                    <div class="item-price">Rs ${item.price.toFixed(2)}</div>
                 </div>
                 <p class="item-description">${item.description}</p>
                 <div class="item-footer">
                     <button class="add-to-cart" data-id="${item.id}">Add to Cart</button>
                 </div>
-            </div>
-        `;
-        
-        menuGrid.appendChild(menuItemElement);
-    });
-    
-    // Add to cart event
-    document.querySelectorAll('.add-to-cart').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const itemId = parseInt(e.target.getAttribute('data-id'));
-            addToCart(itemId);
-        });
+            </div>`;
+        menuGrid.appendChild(div);
     });
 }
 
-// Filter menu items
 function filterMenuItems(category) {
-    if (category === 'all') {
-        displayMenuItems(menuItems);
-    } else {
-        const filteredItems = menuItems.filter(item => item.category === category);
-        displayMenuItems(filteredItems);
-    }
+    category === 'all' ? displayMenuItems(menuItems) : displayMenuItems(menuItems.filter(i => i.category === category));
 }
 
-// Cart functions, checkout, order confirmation, mobile nav remain unchanged...
+function addToCart(itemId) {
+    const item = menuItems.find(i => i.id === itemId);
+    const existing = cart.find(ci => ci.id === itemId);
+    existing ? existing.quantity++ : cart.push({ ...item, quantity: 1 });
+    updateCartUI();
+}
 
-// Reservation Form
+function updateCartUI() {
+    cartItemsContainer.innerHTML = '';
+    let total = 0;
+    cart.forEach(item => {
+        const div = document.createElement('div');
+        div.classList.add('cart-item');
+        div.innerHTML = `
+            <div class="cart-item-name">${item.name}</div>
+            <div class="cart-item-qty">
+                <button class="decrease" data-id="${item.id}">-</button>
+                <span>${item.quantity}</span>
+                <button class="increase" data-id="${item.id}">+</button>
+            </div>
+            <div class="cart-item-price">Rs ${(item.price * item.quantity).toFixed(2)}</div>`;
+        cartItemsContainer.appendChild(div);
+        total += item.price * item.quantity;
+    });
+    cartTotalElement.textContent = `Rs ${total.toFixed(2)}`;
+    cartCountElement.textContent = cart.reduce((acc, i) => acc + i.quantity, 0);
+}
+
+// CORRECTED: Added logic for the checkout button to function
+if (proceedToCheckoutBtn) {
+    proceedToCheckoutBtn.addEventListener('click', () => {
+        document.querySelector('.cart-items').style.display = 'none';
+        document.querySelector('.cart-total').style.display = 'none';
+        proceedToCheckoutBtn.style.display = 'none';
+        checkoutForm.style.display = 'block';
+        checkoutForm.classList.add('active');
+        document.querySelector('.modal-title').textContent = 'Checkout Details';
+    });
+}
+
+menuGrid.addEventListener('click', (e) => {
+    if (e.target.classList.contains('add-to-cart')) addToCart(parseInt(e.target.dataset.id));
+});
+
+cartItemsContainer.addEventListener('click', (e) => {
+    const id = parseInt(e.target.dataset.id);
+    const item = cart.find(i => i.id === id);
+    if (e.target.classList.contains('increase')) item.quantity++;
+    if (e.target.classList.contains('decrease')) {
+        item.quantity--;
+        if (item.quantity <= 0) cart = cart.filter(i => i.id !== id);
+    }
+    updateCartUI();
+});
+
+placeOrderBtn.addEventListener('click', () => {
+    if (cart.length === 0) return alert("Empty cart!");
+    orderConfirmation.style.display = 'block';
+    orderSummary.innerHTML = cart.map(i => `<div>${i.name} x ${i.quantity} = Rs ${i.price * i.quantity}</div>`).join('') + `<hr>Total: ${cartTotalElement.textContent}`;
+    cart = [];
+    updateCartUI();
+    cartModal.style.display = 'none';
+});
+
 const reservationForm = document.getElementById("reservationForm");
-const reservationMessage = document.getElementById("reservationMessage");
-
 if (reservationForm) {
-    reservationForm.addEventListener("submit", function (e) {
+    reservationForm.addEventListener("submit", (e) => {
         e.preventDefault();
-
-        const name = document.getElementById("resName").value;
-        const date = document.getElementById("resDate").value;
-        const time = document.getElementById("resTime").value;
-
-        reservationMessage.style.color = "green";
-        reservationMessage.textContent =
-            `Thank you ${name}! Your table has been reserved for ${date} at ${time}.`;
-
+        document.getElementById("reservationMessage").textContent = `Reserved for ${document.getElementById("resName").value}!`;
         reservationForm.reset();
     });
 }
+
+cartIcon.addEventListener('click', () => cart.length ? cartModal.style.display = 'block' : alert("Cart is empty!"));
+closeModal.addEventListener('click', () => {
+    cartModal.style.display = 'none';
+    // Reset modal view
+    document.querySelector('.cart-items').style.display = 'block';
+    document.querySelector('.cart-total').style.display = 'flex';
+    proceedToCheckoutBtn.style.display = 'block';
+    checkoutForm.style.display = 'none';
+});
 // Smooth scrolling for all internal links and buttons
 document.querySelectorAll('a[href^="#"], button[data-scroll]').forEach(el => {
     el.addEventListener('click', (e) => {
@@ -293,7 +326,6 @@ document.querySelectorAll('a[href^="#"], button[data-scroll]').forEach(el => {
         }
     });
 });
-
 
 // ---------------------------
 // Mobile / Hamburger Navigation
@@ -325,14 +357,9 @@ mobileNavToggle.addEventListener('click', () => {
     }
 });
 
-// Close menu if overlay is clicked
-overlay.addEventListener('click', closeMobileNav);
 
-// Close mobile menu when any link inside it is clicked
-document.querySelectorAll('.mobile-nav a').forEach(link => {
-    link.addEventListener('click', closeMobileNav);
-});
+window.addEventListener('click', (e) => e.target === cartModal && (cartModal.style.display = 'none'));
 
-// Initialize the application
 initializeMenu();
+
 

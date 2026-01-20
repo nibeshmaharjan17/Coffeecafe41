@@ -72,7 +72,8 @@
             <p>There’s always something brewing at CoffeeCafe. Order your coffee online,
                  reserve your favorite corner, and enjoy the buttery taste of croissants
                   and pastries fresh from our oven.</p>
-            <button class="btn btn-secondary" data-scroll="#menu">View Menu</button>
+           <button class="btn btn-secondary" data-scroll="#menu">View Menu</button>
+
 
         </div>
     </section>
@@ -170,7 +171,7 @@
         </div>
     </section>
 
-    <!-- Cart Modal -->
+     <!-- Cart Modal -->
     <div class="modal" id="cartModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -188,7 +189,7 @@
                 <h3 style="margin-bottom: 20px;">Checkout Information</h3>
                 <div class="form-group">
                     <label for="customerName">Full Name</label>
-                    <input type="text" id="customerName" placeholder="John Doe" required>
+                    <input type="text" id="customerName" placeholder="Your Name" required>
                 </div>
                 <div class="form-group">
                     <label for="customerEmail">Email</label>
@@ -196,32 +197,22 @@
                 </div>
                 <div class="form-group">
                     <label for="customerPhone">Phone Number</label>
-                    <input type="tel" id="customerPhone" placeholder="(555) 123-4567" required>
+                    <input type="tel" id="customerPhone" placeholder="(+977) 1234567891" required>
                 </div>
                 <div class="form-group">
                     <label for="customerAddress">Delivery Address</label>
-                    <textarea id="customerAddress" rows="3" placeholder="123 Main St, City, State, ZIP" required></textarea>
+                    <textarea id="customerAddress" rows="3" placeholder="Address for delivery" required></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="paymentMethod">Payment Method</label>
                         <select id="paymentMethod" required>
-                            <option value="">Select Payment</option>
-                            <option value="credit">Credit Card</option>
-                            <option value="debit">Debit Card</option>
+                            <option value="qr">QR</option>
+                            <option value="pickup">Pickup from Cafe</option>
                             <option value="cash">Cash on Delivery</option>
                         </select>
                     </div>
-                    <div class="form-group">
-                        <label for="deliveryTime">Delivery Time</label>
-                        <select id="deliveryTime" required>
-                            <option value="">Select Time</option>
-                            <option value="asap">As Soon As Possible</option>
-                            <option value="30min">30 Minutes</option>
-                            <option value="45min">45 Minutes</option>
-                            <option value="60min">60 Minutes</option>
-                        </select>
-                    </div>
+                   
                 </div>
                 <div class="form-actions">
                     <button class="btn btn-outline" id="backToCart">Back to Cart</button>
@@ -230,26 +221,18 @@
             </div>
             
             <!-- Order Confirmation -->
-            <div class="order-confirmation" id="orderConfirmation">
-                <div class="confirmation-icon">
-                    <i class="fas fa-check-circle"></i>
-                </div>
-                <h3 class="confirmation-title">Order Confirmed!</h3>
-                <p class="confirmation-message">Thank you for your order. Your delicious burgers are being prepared and will be delivered soon.</p>
-                <div class="order-summary" id="orderSummary">
-                    <!-- Order summary will be dynamically added here -->
-                </div>
-                <button class="btn btn-primary" id="newOrder">Start New Order</button>
-            </div>
+             
+           
             
             <!-- Cart Total and Checkout Button -->
             <div class="cart-total">
                 <span>Total:</span>
-                <span id="cartTotal">$0.00</span>
+                <span id="cartTotal">Rs 0.00</span>
             </div>
             <button class="checkout-btn" id="proceedToCheckout">Proceed to Checkout</button>
         </div>
     </div>
+
 
   <!-- Map Section -->
 <section id="location" class="map-section">
