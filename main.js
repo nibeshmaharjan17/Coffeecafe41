@@ -161,6 +161,9 @@
                 image: "fries.jpg",
             },
         ];
+
+
+        
 // Cart functionality
 let cart = [];
 const cartIcon = document.getElementById('cartIcon');
