@@ -283,15 +283,54 @@ cartItemsContainer.addEventListener('click', (e) => {
     updateCartUI();
 });
 
+// --- UPDATED PLACE ORDER LOGIC FOR FIREBASE ---
 placeOrderBtn.addEventListener('click', () => {
-    if (cart.length === 0) return alert("Empty cart!");
-    orderConfirmation.style.display = 'block';
-    orderSummary.innerHTML = cart.map(i => `<div>${i.name} x ${i.quantity} = Rs ${i.price * i.quantity}</div>`).join('') + `<hr>Total: ${cartTotalElement.textContent}`;
-    cart = [];
-    updateCartUI();
-    cartModal.style.display = 'none';
-});
+    if (cart.length === 0) return alert("Your cart is empty!");
 
+    // 1. Collect Customer Details
+    // Ensure these IDs (resName, resPhone) exist in your HTML form!
+    const customerName = document.getElementById('resName')?.value || "Anonymous";
+    const customerPhone = document.getElementById('resPhone')?.value || "No Phone Provided";
+
+    // This MUST be inside your placeOrderBtn click listener
+database.ref('orders').push(orderData)
+    .then(() => {
+        console.log("Data sent to Firebase!");
+    })
+    .catch((error) => {
+        console.error("Firebase Error:", error);
+    });
+
+    // 2. Prepare the Data Object
+    const orderData = {
+        customer: customerName,
+        phone: customerPhone,
+        items: cart.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+        })),
+        total: cartTotalElement.textContent,
+        status: "Pending",
+        timestamp: new Date().toLocaleString()
+    };
+
+    // 3. Push to Firebase
+    // This sends the data to https://coffeecafe-5c8b2...
+    database.ref('orders').push(orderData)
+        .then(() => {
+            alert("Order placed successfully! The kitchen has received it.");
+            
+            // Clear the cart and UI
+            cart = [];
+            updateCartUI();
+            cartModal.style.display = 'none';
+        })
+        .catch((error) => {
+            console.error("Firebase Error:", error);
+            alert("Failed to send order. Check your internet connection.");
+        });
+});
 const reservationForm = document.getElementById("reservationForm");
 if (reservationForm) {
     reservationForm.addEventListener("submit", (e) => {
