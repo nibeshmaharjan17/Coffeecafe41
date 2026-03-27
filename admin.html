@@ -37,7 +37,7 @@
     </div>
 
     <script>
-        const API_URL = "http://localhost:3000"; // CHANGE THIS TO YOUR RENDER URL LATER
+        const API_URL = "https://coffee-backend-9koq.onrender.com"; 
 
         async function login() {
             const res = await fetch(`${API_URL}/admin/login`, {
@@ -54,22 +54,24 @@
         }
 
         async function fetchOrders() {
-            const res = await fetch(`${API_URL}/admin/orders`);
-            const orders = await res.json();
-            document.getElementById('ordersList').innerHTML = orders.map(o => `
-                <div class="order-card">
-                    <div>
-                        <strong>${o.name}</strong> <small>(${o.time})</small><br>
-                        <span style="font-size:0.9em">${o.items.map(i => i.name + ' x' + i.quantity).join(', ')}</span><br>
-                        <span class="status-badge">Current: ${o.status}</span>
+            try {
+                const res = await fetch(`${API_URL}/admin/orders`);
+                const orders = await res.json();
+                document.getElementById('ordersList').innerHTML = orders.map(o => `
+                    <div class="order-card">
+                        <div>
+                            <strong>${o.name}</strong> <small>(${o.time})</small><br>
+                            <span style="font-size:0.9em">${o.items.map(i => i.name + ' x' + i.quantity).join(', ')}</span><br>
+                            <span class="status-badge">Current: ${o.status}</span>
+                        </div>
+                        <select onchange="updateStatus(${o.id}, this.value)">
+                            <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
+                            <option value="On the Way" ${o.status === 'On the Way' ? 'selected' : ''}>On the Way</option>
+                            <option value="Ready to Pick Up" ${o.status === 'Ready to Pick Up' ? 'selected' : ''}>Ready to Pick Up</option>
+                        </select>
                     </div>
-                    <select onchange="updateStatus(${o.id}, this.value)">
-                        <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
-                        <option value="On the Way" ${o.status === 'On the Way' ? 'selected' : ''}>On the Way</option>
-                        <option value="Ready to Pick Up" ${o.status === 'Ready to Pick Up' ? 'selected' : ''}>Ready to Pick Up</option>
-                    </select>
-                </div>
-            `).join('');
+                `).join('');
+            } catch (e) { console.log("Connection error"); }
         }
 
         async function updateStatus(id, status) {
