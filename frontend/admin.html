@@ -30,6 +30,12 @@
   <h1>Orders</h1>
   <button id="refreshBtn">Refresh Orders</button>
   <div id="orders"></div>
+
+  <hr>
+
+  <h1>Reservations</h1>
+  <button id="refreshReservationsBtn">Refresh Reservations</button>
+  <div id="reservations"></div>
 </div>
 
 <script>
@@ -37,9 +43,8 @@ const API_URL = 'https://coffee-backend-9koq.onrender.com';
 let accessToken = '';
 let refreshToken = '';
 
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
 const refreshBtn = document.getElementById('refreshBtn');
+const refreshReservationsBtn = document.getElementById('refreshReservationsBtn');
 const loginSection = document.getElementById('loginSection');
 const adminSection = document.getElementById('adminSection');
 const loginMessage = document.getElementById('loginMessage');
@@ -47,6 +52,7 @@ const loginMessage = document.getElementById('loginMessage');
 loginBtn.addEventListener('click', login);
 logoutBtn.addEventListener('click', logout);
 refreshBtn.addEventListener('click', loadOrders);
+refreshReservationsBtn.addEventListener('click', loadReservations);
 
 // Check if already logged in (tokens in localStorage)
 window.addEventListener('load', () => {
@@ -94,6 +100,7 @@ async function login() {
 
     showAdminPanel(username);
     loadOrders();
+    loadReservations();
   } catch (err) {
     loginMessage.textContent = 'Login error: ' + err.message;
     console.error(err);
@@ -292,9 +299,182 @@ async function updateOrder(id) {
   }
 }
 
-// Auto-refresh orders every 5 seconds when logged in
+async function loadReservations() {
+  if (!accessToken) {
+    loginMessage.textContent = 'Please login first.';
+    return;
+  }
+
+  try {
+    let res = await fetch(`${API_URL}/api/reservations`, {
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    // Handle token expiration
+    if (res.status === 403) {
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        logout();
+        return;
+      }
+      // Retry with new token
+      res = await fetch(`${API_URL}/api/reservations`, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+    }
+
+    if (!res.ok) {
+      loginMessage.textContent = 'Failed to fetch reservations.';
+      return;
+    }
+
+    const reservations = await res.json();
+    const container = document.getElementById('reservations');
+    container.innerHTML = '';
+
+    if (reservations.length === 0) {
+      container.innerHTML = '<p>No reservations yet</p>';
+      return;
+    }
+
+    reservations.forEach(reservation => {
+      const div = document.createElement('div');
+      div.className = 'order-card';
+
+      const date = new Date(reservation.date).toLocaleDateString();
+
+      div.innerHTML = `
+        <b>Reservation ID:</b> ${reservation._id}<br>
+        <b>Table:</b> ${reservation.tableNumber}<br>
+        <b>Name:</b> ${reservation.customer.name}<br>
+        <b>Contact:</b> ${reservation.customer.email} | ${reservation.customer.phone}<br>
+        <b>Guests:</b> ${reservation.guests}<br>
+        <b>Date:</b> ${date}<br>
+        <b>Time:</b> ${reservation.time}<br>
+        <b>Status:</b> ${reservation.status}<br>
+        ${reservation.notes ? `<b>Notes:</b> ${reservation.notes}<br>` : ''}
+        <b>Created:</b> ${new Date(reservation.createdAt).toLocaleString()}<br>
+        <div class="order-actions">
+          <select data-reservation-id="${reservation._id}" class="reservation-status-select">
+            <option value="pending" ${reservation.status === 'pending' ? 'selected' : ''}>pending</option>
+            <option value="confirmed" ${reservation.status === 'confirmed' ? 'selected' : ''}>confirmed</option>
+            <option value="cancelled" ${reservation.status === 'cancelled' ? 'selected' : ''}>cancelled</option>
+            <option value="completed" ${reservation.status === 'completed' ? 'selected' : ''}>completed</option>
+          </select>
+          <button onclick="updateReservation('${reservation._id}')">Update</button>
+          <button onclick="deleteReservation('${reservation._id}')" style="background: #d32f2f; color: white;">Delete</button>
+        </div>
+      `;
+
+      container.appendChild(div);
+    });
+    loginMessage.textContent = '';
+  } catch (err) {
+    loginMessage.textContent = 'Error loading reservations: ' + err.message;
+    console.error(err);
+  }
+}
+
+async function updateReservation(id) {
+  if (!accessToken) {
+    loginMessage.textContent = 'Please login first.';
+    return;
+  }
+
+  const container = [...document.getElementsByClassName('order-card')].find(card => card.innerHTML.includes(id));
+  if (!container) return;
+
+  const statusSelect = container.querySelector(`.reservation-status-select[data-reservation-id='${id}']`);
+
+  try {
+    let res = await fetch(`${API_URL}/api/reservations/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      },
+      body: JSON.stringify({ status: statusSelect.value })
+    });
+
+    // Handle token expiration
+    if (res.status === 403) {
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        logout();
+        return;
+      }
+      // Retry with new token
+      res = await fetch(`${API_URL}/api/reservations/${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ status: statusSelect.value })
+      });
+    }
+
+    if (res.ok) {
+      loadReservations();
+    } else {
+      const error = await res.json();
+      alert('Failed to update reservation: ' + (error.message || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Error updating reservation: ' + err.message);
+  }
+}
+
+async function deleteReservation(id) {
+  if (!confirm('Are you sure you want to delete this reservation?')) return;
+
+  if (!accessToken) {
+    loginMessage.textContent = 'Please login first.';
+    return;
+  }
+
+  try {
+    let res = await fetch(`${API_URL}/api/reservations/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${accessToken}` }
+    });
+
+    // Handle token expiration
+    if (res.status === 403) {
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        logout();
+        return;
+      }
+      // Retry with new token
+      res = await fetch(`${API_URL}/api/reservations/${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+    }
+
+    if (res.ok) {
+      loadReservations();
+    } else {
+      const error = await res.json();
+      alert('Failed to delete reservation: ' + (error.message || 'Unknown error'));
+    }
+  } catch (err) {
+    alert('Error deleting reservation: ' + err.message);
+  }
+}
+
+// Auto-refresh reservations every 30 seconds when logged in
 setInterval(() => {
-  if (accessToken) loadOrders();
+  if (accessToken) loadReservations();
+}, 30000);
+
+// Auto-refresh orders and reservations every 5 seconds when logged in
+setInterval(() => {
+  if (accessToken) {
+    loadOrders();
+    loadReservations();
+  }
 }, 5000);
 </script>
 

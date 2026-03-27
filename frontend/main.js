@@ -358,13 +358,118 @@ placeOrderBtn.addEventListener('click', async () => {
     }
 });
 
+// Reservation System
 const reservationForm = document.getElementById("reservationForm");
+const availabilityStatus = document.getElementById("availabilityStatus");
+const resDate = document.getElementById("resDate");
+const resTime = document.getElementById("resTime");
+const resTable = document.getElementById("resTable");
+
 if (reservationForm) {
-    reservationForm.addEventListener("submit", (e) => {
-        e.preventDefault();
-        document.getElementById("reservationMessage").textContent = `Reserved for ${document.getElementById("resName").value}!`;
-        reservationForm.reset();
+    // Check availability when date/time changes
+    [resDate, resTime].forEach(element => {
+        element.addEventListener("change", checkTableAvailability);
     });
+
+    reservationForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = {
+            tableNumber: document.getElementById("resTable").value,
+            customer: {
+                name: document.getElementById("resName").value,
+                email: document.getElementById("resEmail").value,
+                phone: document.getElementById("resPhone").value
+            },
+            guests: document.getElementById("resGuests").value,
+            date: document.getElementById("resDate").value,
+            time: document.getElementById("resTime").value,
+            notes: document.getElementById("resNotes").value
+        };
+
+        try {
+            const response = await fetch(`${API_URL}/api/reservations`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById("reservationMessage").textContent =
+                    `✅ Reservation confirmed for ${formData.customer.name} at Table ${formData.tableNumber} on ${formData.date} at ${formData.time}`;
+                document.getElementById("reservationMessage").style.color = "green";
+                reservationForm.reset();
+                availabilityStatus.style.display = "none";
+            } else {
+                document.getElementById("reservationMessage").textContent = `❌ ${result.message}`;
+                document.getElementById("reservationMessage").style.color = "red";
+            }
+        } catch (error) {
+            document.getElementById("reservationMessage").textContent = "❌ Error making reservation. Please try again.";
+            document.getElementById("reservationMessage").style.color = "red";
+            console.error('Reservation error:', error);
+        }
+    });
+}
+
+async function checkTableAvailability() {
+    const date = resDate.value;
+    const time = resTime.value;
+
+    if (!date || !time) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/tables/availability?date=${date}&time=${time}`);
+        const data = await response.json();
+
+        if (response.ok) {
+            updateTableOptions(data.availableTables, data.reservedTables);
+            showAvailabilityStatus(data);
+        }
+    } catch (error) {
+        console.error('Error checking availability:', error);
+    }
+}
+
+function updateTableOptions(availableTables, reservedTables) {
+    const options = resTable.querySelectorAll('option');
+    options.forEach(option => {
+        if (option.value) {
+            const tableNum = parseInt(option.value);
+            if (reservedTables.includes(tableNum)) {
+                option.disabled = true;
+                option.textContent = `Table ${tableNum} (Reserved)`;
+                option.style.color = "#999";
+            } else {
+                option.disabled = false;
+                option.textContent = `Table ${tableNum}`;
+                option.style.color = "";
+            }
+        }
+    });
+}
+
+function showAvailabilityStatus(data) {
+    availabilityStatus.style.display = "block";
+
+    if (data.availableTables.length === 0) {
+        availabilityStatus.innerHTML = `
+            <div style="color: #d32f2f; background: #ffebee; padding: 10px; border-radius: 5px;">
+                <strong>❌ No tables available</strong> for ${data.date} at ${data.time}
+            </div>
+        `;
+    } else {
+        availabilityStatus.innerHTML = `
+            <div style="color: #2e7d32; background: #e8f5e8; padding: 10px; border-radius: 5px;">
+                <strong>✅ ${data.availableTables.length} tables available</strong> for ${data.date} at ${data.time}<br>
+                <small>Available tables: ${data.availableTables.join(', ')}</small>
+            </div>
+        `;
+    }
 }
 
 cartIcon.addEventListener('click', () => cart.length ? cartModal.style.display = 'block' : alert("Cart is empty!"));
@@ -429,6 +534,17 @@ mobileNavToggle.addEventListener('click', () => {
 
 
 window.addEventListener('click', (e) => e.target === cartModal && (cartModal.style.display = 'none'));
+
+// Table Number Display
+if (tableNumber) {
+    const tableDisplay = document.getElementById('tableDisplay');
+    const tableNumberText = document.getElementById('tableNumberText');
+
+    if (tableDisplay && tableNumberText) {
+        tableDisplay.style.display = 'block';
+        tableNumberText.textContent = `You are ordering for Table ${tableNumber}`;
+    }
+}
 
 initializeMenu();
 

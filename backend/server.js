@@ -299,6 +299,149 @@ app.patch("/api/orders/:id", auth, async (req, res) => {
   }
 });
 
+// ===== RESERVATION ENDPOINTS =====
+
+// Import Reservation model
+const Reservation = require("./models/Reservation");
+
+// Rate limiter for reservations
+const reservationLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 reservation attempts per 15 minutes
+  message: "Too many reservation attempts, please try again later",
+});
+
+// Create reservation
+app.post("/api/reservations", reservationLimiter, async (req, res) => {
+  try {
+    const { tableNumber, customer, guests, date, time, notes } = req.body;
+
+    // Validate table number
+    const num = Number(tableNumber);
+    if (!Number.isInteger(num) || num < 1 || num > 8) {
+      return res.status(400).json({ message: "Invalid table number" });
+    }
+
+    // Check if table is available for the requested date/time
+    const existingReservation = await Reservation.findOne({
+      tableNumber: num,
+      date: new Date(date),
+      time: time,
+      status: { $in: ['pending', 'confirmed'] }
+    });
+
+    if (existingReservation) {
+      return res.status(409).json({
+        message: `Table ${num} is already reserved for ${date} at ${time}`
+      });
+    }
+
+    const reservation = new Reservation({
+      tableNumber: num,
+      customer,
+      guests,
+      date: new Date(date),
+      time,
+      notes
+    });
+
+    await reservation.save();
+    res.status(201).json({
+      message: "Reservation created successfully",
+      reservation
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error creating reservation", error: err.message });
+  }
+});
+
+// Get all reservations (admin only)
+app.get("/api/reservations", auth, async (req, res) => {
+  try {
+    const reservations = await Reservation.find()
+      .sort({ date: 1, time: 1 })
+      .limit(100); // Limit to prevent large responses
+    res.json(reservations);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching reservations", error: err.message });
+  }
+});
+
+// Get available tables for a specific date/time
+app.get("/api/tables/availability", async (req, res) => {
+  try {
+    const { date, time } = req.query;
+
+    if (!date || !time) {
+      return res.status(400).json({ message: "Date and time are required" });
+    }
+
+    // Find all reserved tables for this date/time
+    const reservedTables = await Reservation.find({
+      date: new Date(date),
+      time: time,
+      status: { $in: ['pending', 'confirmed'] }
+    }).select('tableNumber');
+
+    const reservedTableNumbers = reservedTables.map(r => r.tableNumber);
+
+    // Return available tables (1-8 except reserved ones)
+    const availableTables = [];
+    for (let i = 1; i <= 8; i++) {
+      if (!reservedTableNumbers.includes(i)) {
+        availableTables.push(i);
+      }
+    }
+
+    res.json({
+      date,
+      time,
+      availableTables,
+      reservedTables: reservedTableNumbers
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Error checking availability", error: err.message });
+  }
+});
+
+// Update reservation status (admin only)
+app.patch("/api/reservations/:id", auth, async (req, res) => {
+  try {
+    const { status, notes } = req.body;
+    const updates = {};
+
+    if (status) updates.status = status;
+    if (notes !== undefined) updates.notes = notes;
+
+    const reservation = await Reservation.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true, runValidators: true }
+    );
+
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+
+    res.json(reservation);
+  } catch (err) {
+    res.status(500).json({ message: "Error updating reservation", error: err.message });
+  }
+});
+
+// Delete reservation (admin only)
+app.delete("/api/reservations/:id", auth, async (req, res) => {
+  try {
+    const reservation = await Reservation.findByIdAndDelete(req.params.id);
+    if (!reservation) {
+      return res.status(404).json({ message: "Reservation not found" });
+    }
+    res.json({ message: "Reservation deleted successfully" });
+  } catch (err) {
+    res.status(500).json({ message: "Error deleting reservation", error: err.message });
+  }
+});
+
 app.listen(process.env.PORT || 5000, () => {
   console.log("Server running...");
 });

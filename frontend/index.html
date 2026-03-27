@@ -148,6 +148,30 @@
                 </div>
             </div>
 
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="resTable">Preferred Table</label>
+                    <select id="resTable" required>
+                        <option value="">Select Table</option>
+                        <option value="1">Table 1</option>
+                        <option value="2">Table 2</option>
+                        <option value="3">Table 3</option>
+                        <option value="4">Table 4</option>
+                        <option value="5">Table 5</option>
+                        <option value="6">Table 6</option>
+                        <option value="7">Table 7</option>
+                        <option value="8">Table 8</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="resNotes">Special Notes (Optional)</label>
+                    <textarea id="resNotes" rows="2" placeholder="Any special requests..."></textarea>
+                </div>
+            </div>
+
+            <div id="availabilityStatus" style="margin: 15px 0; padding: 10px; border-radius: 5px; display: none;"></div>
+
             <button type="submit" class="btn btn-primary">
                 Reserve Table
             </button>
@@ -188,6 +212,17 @@
             <!-- Checkout Form -->
             <div class="checkout-form" id="checkoutForm">
                 <h3 style="margin-bottom: 20px;">Checkout Information</h3>
+
+                <!-- Table Number Display -->
+                <div id="tableDisplay" style="display: none; background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 2px solid #4CAF50;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <i class="fas fa-utensils" style="color: #4CAF50; font-size: 20px;"></i>
+                        <div>
+                            <strong style="color: #2e7d32;">Table Service</strong><br>
+                            <span id="tableNumberText" style="color: #388e3c; font-weight: 500;"></span>
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <input type="checkbox" id="fastOrderToggle">
                     <label for="fastOrderToggle" style="margin-left: 8px;">Quick order (minimal details required)</label>
