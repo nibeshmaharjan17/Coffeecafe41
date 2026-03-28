@@ -19,7 +19,17 @@ exports.handler = async (event) => {
   }
 
   try {
-    const orderId = event.path.split('/').pop();
+    // Get orderId from query parameters
+    const orderId = event.queryStringParameters?.id;
+    
+    if (!orderId) {
+      return {
+        statusCode: 400,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ success: false, message: "Order ID required" })
+      };
+    }
+
     const order = store.getOrder(orderId);
 
     if (!order) {

@@ -44,10 +44,10 @@
     <div id="loginSection">
         <h2>🍰 CoffeeCafe Admin Login</h2>
         <div class="form-group">
-            <input type="text" id="user" placeholder="Username" value="admin">
+            <input type="text" id="user" placeholder="Username">
         </div>
         <div class="form-group">
-            <input type="password" id="pass" placeholder="Password" value="coffee123">
+            <input type="password" id="pass" placeholder="Password">
         </div>
         <button onclick="login()">Login</button>
         <div id="loginError" class="error hidden"></div>
@@ -86,7 +86,7 @@
             const errorDiv = document.getElementById('loginError');
 
             try {
-                const res = await fetch(`${API_BASE_URL}/admin/login`, {
+                const res = await fetch(`${API_BASE_URL}/admin-login`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ username, password })
@@ -188,10 +188,10 @@
 
         async function updateStatus(orderId, newStatus) {
             try {
-                const res = await fetch(`${API_BASE_URL}/admin/orders/${orderId}`, {
+                const res = await fetch(`${API_BASE_URL}/admin-orders-update`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: newStatus })
+                    body: JSON.stringify({ orderId, status: newStatus })
                 });
 
                 if (res.ok) {
