@@ -347,7 +347,7 @@ function trackOrderStatus(id) {
     // Check the server every 10 seconds
     const checkStatus = setInterval(async () => {
         try {
-            const res = await fetch(`${API_BASE_URL}/order-status/${id}`);
+            const res = await fetch(`${API_BASE_URL}/order-status?id=${id}`);
             const data = await res.json();
             
             // If the status has changed to something the customer needs to know

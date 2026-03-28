@@ -19,8 +19,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const orderId = event.path.split('/').pop();
-    const { status } = JSON.parse(event.body);
+    const { orderId, status } = JSON.parse(event.body);
 
     const order = store.updateOrder(orderId, status);
 
