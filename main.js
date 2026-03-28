@@ -1,7 +1,5 @@
 // API Base URL configuration
-const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:3000'
-    : '/.netlify/functions'; // Netlify Functions
+const API_BASE_URL = '/.netlify/functions';
 
 // Menu Data
 const menuItems = [

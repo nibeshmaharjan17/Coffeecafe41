@@ -73,9 +73,7 @@
 
     <script>
         // API Configuration
-        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3000'
-            : '/.netlify/functions'; // Netlify Functions
+        const API_BASE_URL = '/.netlify/functions';
 
         let orderPollingInterval = null;
         let lastOrderIds = [];
@@ -154,7 +152,11 @@
                 
                 if (isNew) {
                     lastOrderIds.push(o.id);
-                    showNotification(`New order from ${o.name}!`);
+                    const summary = o.items.map(i => `${i.name} × ${i.quantity}`).join(', ');
+                    showNotification(
+                        `New order from ${o.name}!`,
+                        `${summary} — Total: ${o.total}`
+                    );
                 }
 
                 return `
@@ -178,12 +180,12 @@
             }).join('');
         }
 
-        function showNotification(message) {
+        function showNotification(message, details = '') {
             const notification = document.createElement('div');
             notification.className = 'notification';
-            notification.textContent = message;
+            notification.innerHTML = `<strong>${message}</strong>${details ? `<div style="margin-top:6px; font-size:0.95rem; opacity:0.92">${details}</div>` : ''}`;
             document.body.appendChild(notification);
-            setTimeout(() => notification.remove(), 4000);
+            setTimeout(() => notification.remove(), 6000);
         }
 
         async function updateStatus(orderId, newStatus) {
