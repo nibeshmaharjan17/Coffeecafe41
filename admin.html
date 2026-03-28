@@ -1,367 +1,172 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Admin Panel</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    .order-card { border: 1px solid #ccc; padding: 12px; margin-bottom: 10px; border-radius: 6px; }
-    .order-actions { margin-top: 8px; }
-    input, button { margin: 4px 0; }
-  </style>
-</head>
-<body>
-
-<h2>Admin Login</h2>
-<div id="loginSection">
-  <input id="user" placeholder="username">
-  <input id="pass" placeholder="password" type="password">
-  <button id="loginBtn">Login</button>
-  <p id="loginMessage" style="color:red"></p>
-</div>
-
-<div id="adminSection" style="display:none;">
-  <div style="background: #f0f0f0; padding: 10px; margin-bottom: 10px; border-radius: 4px;">
-    <p>Logged in as: <strong id="adminUsername"></strong></p>
-    <button id="logoutBtn" style="background: #d32f2f; color: white; padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer;">Logout</button>
-  </div>
-
-  <hr>
-
-  <h1>Orders</h1>
-  <button id="refreshBtn">Refresh Orders</button>
-  <div id="orders"></div>
-</div>
-
-<script>
-const API_URL = 'https://coffee-backend-9koq.onrender.com';
-let accessToken = '';
-let refreshToken = '';
-
-const loginBtn = document.getElementById('loginBtn');
-const logoutBtn = document.getElementById('logoutBtn');
-const refreshBtn = document.getElementById('refreshBtn');
-const loginSection = document.getElementById('loginSection');
-const adminSection = document.getElementById('adminSection');
-const loginMessage = document.getElementById('loginMessage');
-
-loginBtn.addEventListener('click', login);
-logoutBtn.addEventListener('click', logout);
-refreshBtn.addEventListener('click', loadOrders);
-
-// Check if already logged in (tokens in localStorage)
-window.addEventListener('load', () => {
-  const savedAccessToken = localStorage.getItem('accessToken');
-  const savedRefreshToken = localStorage.getItem('refreshToken');
-  const savedUsername = localStorage.getItem('adminUsername');
-  
-  if (savedAccessToken && savedRefreshToken) {
-    accessToken = savedAccessToken;
-    refreshToken = savedRefreshToken;
-    showAdminPanel(savedUsername);
-  }
-});
-
-async function login() {
-  const username = document.getElementById('user').value;
-  const password = document.getElementById('pass').value;
-
-  if (!username || !password) {
-    loginMessage.textContent = 'Please enter username and password';
-    return;
-  }
-
-  try {
-    const res = await fetch(`${API_URL}/api/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      loginMessage.textContent = error.message || 'Invalid credentials';
-      return;
-    }
-
-    const data = await res.json();
-    accessToken = data.accessToken;
-    refreshToken = data.refreshToken;
-
-    // Save to localStorage for session persistence
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-    localStorage.setItem('adminUsername', username);
-
-    showAdminPanel(username);
-    loadOrders();
-  } catch (err) {
-    loginMessage.textContent = 'Login error: ' + err.message;
-    console.error(err);
-  }
-}
-
-function showAdminPanel(username) {
-  loginSection.style.display = 'none';
-  adminSection.style.display = 'block';
-  document.getElementById('adminUsername').textContent = username;
-}
-
-async function logout() {
-  try {
-    // Notify server to blacklist token
-    await fetch(`${API_URL}/api/logout`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-  } catch (err) {
-    console.error('Logout error:', err);
-  }
-
-  // Clear tokens
-  accessToken = '';
-  refreshToken = '';
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('adminUsername');
-
-  // Reset UI
-  loginSection.style.display = 'block';
-  adminSection.style.display = 'none';
-  document.getElementById('user').value = '';
-  document.getElementById('pass').value = '';
-  loginMessage.textContent = 'Logged out successfully';
-}
-
-async function loadOrders() {
-  if (!accessToken) {
-    loginMessage.textContent = 'Please login first.';
-    showLoginPanel();
-    return;
-  }
-
-  try {
-    let res = await fetch(`${API_URL}/api/orders`, {
-      headers: { 'Authorization': `Bearer ${accessToken}` }
-    });
-
-    // Handle token expiration
-    if (res.status === 403) {
-      const refreshed = await refreshAccessToken();
-      if (!refreshed) {
-        logout();
-        return;
-      }
-      // Retry with new token
-      res = await fetch(`${API_URL}/api/orders`, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-    }
-
-    if (!res.ok) {
-      loginMessage.textContent = 'Failed to fetch orders.';
-      return;
-    }
-
-    const orders = await res.json();
-    const container = document.getElementById('orders');
-    container.innerHTML = '';
-
-    if (orders.length === 0) {
-      container.innerHTML = '<p>No orders yet</p>';
-      return;
-    }
-
-    orders.forEach(order => {
-      const div = document.createElement('div');
-      div.className = 'order-card';
-
-      const total = order.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      
-      div.innerHTML = `
-        <b>Order ID:</b> ${order._id}<br>
-        <b>Table:</b> ${order.tableNumber || 'No table'}<br>
-        <b>Name:</b> ${order.customer.name || 'Guest'}<br>
-        <b>Contact:</b> ${order.customer.email || order.customer.phone || 'N/A'}<br>
-        <b>Status:</b> ${order.status}<br>
-        <b>Payment:</b> ${order.paymentMethod}<br>
-        <b>Total:</b> Rs ${total.toFixed(2)}<br>
-        <b>Created:</b> ${new Date(order.createdAt).toLocaleString()}<br>
-        <div class="order-actions">
-          <label>Update table: <input type="number" value="${order.tableNumber || ''}" data-order-id="${order._id}" class="table-input"></label>
-          <select data-order-id="${order._id}" class="status-select">
-            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>pending</option>
-            <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>preparing</option>
-            <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>ready</option>
-            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>completed</option>
-            <option value="cancelled" ${order.status === 'cancelled' ? 'selected' : ''}>cancelled</option>
-          </select>
-          <button onclick="updateOrder('${order._id}')">Save</button>
-        </div>
-      `;
-
-      container.appendChild(div);
-    });
-    loginMessage.textContent = '';
-  } catch (err) {
-    loginMessage.textContent = 'Error loading orders: ' + err.message;
-    console.error(err);
-  }
-}
-
-async function refreshAccessToken() {
-  if (!refreshToken) return false;
-
-  try {
-    const res = await fetch(`${API_URL}/api/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken })
-    });
-
-    if (!res.ok) {
-      return false;
-    }
-
-    const data = await res.json();
-    accessToken = data.accessToken;
-    localStorage.setItem('accessToken', accessToken);
-    return true;
-  } catch (err) {
-    console.error('Token refresh failed:', err);
-    return false;
-  }
-}
-
-function showLoginPanel() {
-  loginSection.style.display = 'block';
-  adminSection.style.display = 'none';
-}
-
-async function updateOrder(id) {
-  if (!accessToken) {
-    loginMessage.textContent = 'Please login first.';
-    return;
-  }
-
-  const container = [...document.getElementsByClassName('order-card')].find(card => card.innerHTML.includes(id));
-  if (!container) return;
-
-  const tableInput = container.querySelector(`.table-input[data-order-id='${id}']`);
-  const statusSelect = container.querySelector(`.status-select[data-order-id='${id}']`);
-
-  const body = {};
-  if (tableInput && tableInput.value) body.tableNumber = Number(tableInput.value);
-  if (statusSelect) body.status = statusSelect.value;
-
-  try {
-    let res = await fetch(`${API_URL}/api/orders/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      },
-      body: JSON.stringify(body)
-    });
-
-    // Handle token expiration
-    if (res.status === 403) {
-      const refreshed = await refreshAccessToken();
-      if (!refreshed) {
-        logout();
-        return;
-      }
-      // Retry with new token
-      res = await fetch(`${API_URL}/api/orders/${id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`
-        },
-        body: JSON.stringify(body)
-      });
-    }
-
-    if (res.ok) {
-      loadOrders();
-    } else {
-      const error = await res.json();
-      alert('Failed to update order: ' + (error.message || 'Unknown error'));
-    }
-  } catch (err) {
-    alert('Error updating order: ' + err.message);
-  }
-}
-
-// Auto-refresh orders every 5 seconds when logged in
-setInterval(() => {
-  if (accessToken) loadOrders();
-}, 5000);
-</script>
-
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>CoffeeCafe | Admin Dashboard</title>
+    <title>CoffeeCafe Admin</title>
     <style>
-        :root { --primary: #ff6b35; --dark: #292929; }
-        body { font-family: 'Segoe UI', sans-serif; background: #fdf2e9; padding: 20px; color: var(--dark); }
-        .container { max-width: 800px; margin: 0 auto; }
-        #loginSection { background: white; padding: 40px; border-radius: 15px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.1); margin-top: 100px; }
-        .order-card { background: white; padding: 20px; margin-bottom: 15px; border-radius: 12px; border-left: 6px solid var(--primary); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f5f5f5; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { background: #ff6b35; color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+        .header h1 { font-size: 28px; }
+        .header p { font-size: 14px; margin-top: 5px; opacity: 0.9; }
+        #loginSection { max-width: 400px; margin: 100px auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        #loginSection h2 { margin-bottom: 25px; color: #333; }
+        .form-group { margin-bottom: 15px; }
+        #loginSection input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        #loginSection button { width: 100%; padding: 12px; background: #ff6b35; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; margin-top: 10px; }
+        #loginSection button:hover { background: #e55a24; }
+        .error { color: #d32f2f; margin-top: 10px; padding: 10px; background: #ffebee; border-radius: 6px; }
+        #adminDashboard { display: none; }
+        #adminDashboard.active { display: block; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .logout-btn { background: #d32f2f; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; }
+        .logout-btn:hover { background: #b71c1c; }
+        .orders-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .order-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); border-left: 5px solid #e67e22; transition: all 0.3s; }
+        .order-card.new { animation: slideIn 0.5s ease-out; border-left-color: #4CAF50; background: #f1f8e9; }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        .order-id { font-size: 12px; color: #999; margin-bottom: 10px; }
+        .order-name { font-size: 18px; font-weight: bold; color: #333; margin-bottom: 8px; }
+        .order-items { font-size: 13px; color: #666; margin: 10px 0; line-height: 1.5; }
+        .order-status { margin: 15px 0; font-weight: bold; }
+        .status-label { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 12px; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-on-way { background: #cfe2ff; color: #084298; }
+        .status-ready { background: #d1e7dd; color: #0f5132; }
+        .order-card select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; cursor: pointer; margin-top: 10px; }
         .hidden { display: none; }
-        input { width: 80%; padding: 10px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; }
-        button { background: var(--primary); color: white; border: none; padding: 10px 25px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-        select { padding: 8px; border-radius: 5px; border: 1px solid var(--primary); font-weight: bold; }
-        .status-badge { padding: 5px 10px; background: #eee; border-radius: 5px; font-size: 0.8em; margin-top: 5px; display: inline-block; }
+        .notification { position: fixed; top: 20px; right: 20px; background: #4CAF50; color: white; padding: 15px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; animation: slideInRight 0.3s ease-out; }
+        @keyframes slideInRight { from { opacity: 0; transform: translateX(100px); } to { opacity: 1; transform: translateX(0); } }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="loginSection">
-            <h2>Admin Login</h2>
-            <input type="text" id="user" placeholder="Username">
-            <input type="password" id="pass" placeholder="Password">
-            <br><br>
-            <button onclick="login()">Enter Dashboard</button>
-        </div>
 
-        <div id="adminDashboard" class="hidden">
-            <div style="display:flex; justify-content: space-between; align-items: center;">
-                <h2>Live Orders</h2>
-                <button onclick="location.reload()" style="background:#292929; font-size: 0.8em;">Refresh</button>
+    <div id="loginSection">
+        <h2>🍰 CoffeeCafe Admin Login</h2>
+        <div class="form-group">
+            <input type="text" id="user" placeholder="Username" value="admin">
+        </div>
+        <div class="form-group">
+            <input type="password" id="pass" placeholder="Password" value="coffee123">
+        </div>
+        <button onclick="login()">Login</button>
+        <div id="loginError" class="error hidden"></div>
+    </div>
+
+    <div id="adminDashboard">
+        <div class="container">
+            <div class="header">
+                <h1>☕ Live Orders Dashboard</h1>
+                <p>Real-time order management and customer notifications</p>
             </div>
-            <hr>
-            <div id="ordersList">Waiting for orders...</div>
+            
+            <div class="dashboard-header">
+                <h2>Active Orders</h2>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            
+            <div class="orders-grid" id="ordersList">
+                <p>No orders yet... Waiting for customers to place orders!</p>
+            </div>
         </div>
     </div>
 
     <script>
-        const API_URL = "https://coffee-backend-9koq.onrender.com"; 
+        // API Configuration
+        const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000'
+            : '/.netlify/functions'; // Netlify Functions
+
+        let orderPollingInterval = null;
+        let lastOrderIds = [];
 
         async function login() {
-            const res = await fetch(`${API_URL}/admin/login`, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({username: user.value, password: pass.value})
-            });
-            if(res.ok) {
-                document.getElementById('loginSection').classList.add('hidden');
-                document.getElementById('adminDashboard').classList.remove('hidden');
-                fetchOrders();
-                setInterval(fetchOrders, 5000);
-            } else { alert("Access Denied"); }
+            const username = document.getElementById('user').value;
+            const password = document.getElementById('pass').value;
+            const errorDiv = document.getElementById('loginError');
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/admin/login`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ username, password })
+                });
+
+                if (!res.ok) throw new Error('Network error');
+                const data = await res.json();
+
+                if (data.success) {
+                    errorDiv.classList.add('hidden');
+                    document.getElementById('loginSection').style.display = 'none';
+                    document.getElementById('adminDashboard').classList.add('active');
+                    startOrderPolling();
+                } else {
+                    errorDiv.classList.remove('hidden');
+                    errorDiv.textContent = 'Invalid username or password';
+                }
+            } catch (error) {
+                errorDiv.classList.remove('hidden');
+                errorDiv.textContent = `Connection error: ${error.message}. Is the backend running on ${API_BASE_URL}?`;
+                console.error('Login error:', error);
+            }
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                clearInterval(orderPollingInterval);
+                document.getElementById('adminDashboard').classList.remove('active');
+                document.getElementById('loginSection').style.display = 'block';
+                lastOrderIds = [];
+            }
+        }
+
+        function startOrderPolling() {
+            // Fetch immediately
+            fetchOrders();
+
+            // Then fetch every 3 seconds
+            orderPollingInterval = setInterval(fetchOrders, 3000);
         }
 
         async function fetchOrders() {
             try {
-                const res = await fetch(`${API_URL}/admin/orders`);
+                const res = await fetch(`${API_BASE_URL}/admin/orders`);
+                if (!res.ok) throw new Error('Failed to fetch orders');
                 const orders = await res.json();
-                document.getElementById('ordersList').innerHTML = orders.map(o => `
-                    <div class="order-card">
-                        <div>
-                            <strong>${o.name}</strong> <small>(${o.time})</small><br>
-                            <span style="font-size:0.9em">${o.items.map(i => i.name + ' x' + i.quantity).join(', ')}</span><br>
-                            <span class="status-badge">Current: ${o.status}</span>
+                renderOrders(orders);
+            } catch (error) {
+                console.error('Fetch orders error:', error);
+            }
+        }
+
+        function renderOrders(orders) {
+            const container = document.getElementById('ordersList');
+            
+            if (orders.length === 0) {
+                container.innerHTML = '<p>No orders yet... Waiting for customers to place orders!</p>';
+                return;
+            }
+
+            container.innerHTML = orders.map(o => {
+                const isNew = !lastOrderIds.includes(o.id);
+                const statusClass = o.status === 'Ready to Pick Up' ? 'status-ready' : 
+                                   o.status === 'On the Way' ? 'status-on-way' : 'status-pending';
+                
+                if (isNew) {
+                    lastOrderIds.push(o.id);
+                    showNotification(`New order from ${o.name}!`);
+                }
+
+                return `
+                    <div class="order-card ${isNew ? 'new' : ''}">
+                        <div class="order-id">Order ID: ${o.id}</div>
+                        <div class="order-name">${o.name}</div>
+                        <div class="order-items"><strong>Items:</strong><br>${o.items.map(i => `${i.name} × ${i.quantity}`).join('<br>')}</div>
+                        <div><strong>Total:</strong> ${o.total}</div>
+                        <div><strong>Phone:</strong> ${o.phone}</div>
+                        <div><strong>Time:</strong> ${o.time}</div>
+                        <div class="order-status">
+                            <span class="status-label ${statusClass}">${o.status}</span>
                         </div>
                         <select onchange="updateStatus(${o.id}, this.value)">
                             <option value="Pending" ${o.status === 'Pending' ? 'selected' : ''}>Pending</option>
@@ -369,16 +174,36 @@ setInterval(() => {
                             <option value="Ready to Pick Up" ${o.status === 'Ready to Pick Up' ? 'selected' : ''}>Ready to Pick Up</option>
                         </select>
                     </div>
-                `).join('');
-            } catch (e) { console.log("Connection error"); }
+                `;
+            }).join('');
         }
 
-        async function updateStatus(id, status) {
-            await fetch(`${API_URL}/admin/orders/${id}`, {
-                method: 'PATCH',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ status })
-            });
+        function showNotification(message) {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 4000);
+        }
+
+        async function updateStatus(orderId, newStatus) {
+            try {
+                const res = await fetch(`${API_BASE_URL}/admin/orders/${orderId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: newStatus })
+                });
+
+                if (res.ok) {
+                    showNotification(`Order updated to: ${newStatus}`);
+                    fetchOrders(); // Refresh orders
+                } else {
+                    alert('Failed to update status');
+                }
+            } catch (error) {
+                console.error('Update error:', error);
+                alert('Error updating status: ' + error.message);
+            }
         }
     </script>
 </body>
